@@ -1,0 +1,4 @@
+streamlit>=1.36
+pypdf>=4.0
+openai>=1.30  # optional: only used when OPENAI_API_KEY is set
+pytest>=8.0  # dev / tests

@@ -1,0 +1,37 @@
+SAMPLE FILING EXCERPT — SYNTHETIC DATA FOR DEMO/TESTING ONLY.
+This is a fictional excerpt written for this project. It is not a real
+company's filing and must not be presented as one. Real filings are
+publicly available from SEC EDGAR (sec.gov/edgar).
+
+ITEM 1. BUSINESS
+Northwind Robotics, Inc. designs and sells warehouse automation systems,
+including autonomous mobile robots and the software platform that
+coordinates them. Revenue is recognised from hardware sales at delivery
+and from software subscriptions ratably over the contract term. The
+company sells primarily to logistics and retail customers in North
+America and Europe.
+
+ITEM 1A. RISK FACTORS
+The company's business depends on a small number of large customers.
+In the most recent fiscal year, the top five customers accounted for
+approximately 41% of total revenue. The loss of any major customer
+could materially reduce revenue. The company also depends on a single
+contract manufacturer for its robot drive units; supply interruptions
+have previously delayed shipments by up to six weeks. Rapid changes in
+tariffs on imported electronic components could increase cost of goods
+sold and compress gross margins.
+
+ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS
+Total revenue increased 18% year over year, driven by a 32% increase in
+software subscription revenue, which now represents 36% of total
+revenue. Gross margin declined from 48% to 45% due to higher component
+costs and expedited freight. Operating expenses increased primarily due
+to investment in research and development for the next generation robot
+platform.
+
+ITEM 8. FINANCIAL STATEMENTS — NOTES ON LIQUIDITY
+As of the fiscal year end, the company held $84 million in cash and cash
+equivalents and had no outstanding borrowings under its $50 million
+revolving credit facility. Management believes existing cash and the
+credit facility are sufficient to fund operations for at least the next
+twelve months.
