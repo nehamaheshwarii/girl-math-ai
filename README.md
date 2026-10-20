@@ -1,4 +1,4 @@
-# girl-math-ai
+# 💅 Girl Math AI - AI tools that make the money math make sense.
 
 A portfolio of small, runnable AI products — built with product discipline:
 every project names its user and problem, ships with evals, and documents
