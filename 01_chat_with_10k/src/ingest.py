@@ -69,7 +69,16 @@ def split_sections(text: str) -> list[tuple[str, str, int]]:
     if matches[0].start() > 0:
         out.append(("Preamble", text[: matches[0].start()], 0))
     for i, m in enumerate(matches):
-        title = f"{m.group(1).upper()} {m.group(2).strip()}".strip()
+        remainder = m.group(2).strip()
+        if not remainder:
+            # Real filings often put the heading on the next line:
+            # "Item 1A.\nRisk Factors" — take that line as the title.
+            following = text[m.end(): m.end() + 300].strip().splitlines()
+            if following:
+                candidate = following[0].strip()
+                if 0 < len(candidate) <= 90:
+                    remainder = candidate
+        title = f"{m.group(1).upper()} {remainder}".strip()
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         out.append((title, text[start:end], start))

@@ -26,6 +26,9 @@ with st.sidebar:
     st.header("Filing")
     uploaded = st.file_uploader("Upload a 10-K (.txt, .md, .pdf)", type=["txt", "md", "pdf"])
     use_sample = st.button("Use the sample filing excerpt")
+    st.divider()
+    ticker = st.text_input("…or fetch from SEC EDGAR by ticker", placeholder="AAPL")
+    fetch = st.button("Fetch latest 10-K")
 
 if "doc" not in st.session_state:
     st.session_state.doc = None
@@ -39,6 +42,15 @@ if uploaded is not None:
 elif use_sample:
     st.session_state.doc = chunk_document(load_text(SAMPLE), title=SAMPLE.name)
     st.session_state.index = BM25Index(st.session_state.doc.chunks)
+elif fetch and ticker:
+    from src.edgar import fetch_latest_10k_text
+    with st.spinner(f"Fetching {ticker.upper()}'s latest 10-K from SEC EDGAR…"):
+        ref, text = fetch_latest_10k_text(
+            ticker, cache_dir=Path(__file__).parent / "data" / "cache")
+    st.session_state.doc = chunk_document(
+        text, title=f"{ref.company} {ref.form} filed {ref.filing_date}")
+    st.session_state.index = BM25Index(st.session_state.doc.chunks)
+    st.sidebar.caption(f"Source: {ref.url}")
 
 doc, index = st.session_state.doc, st.session_state.index
 if doc:

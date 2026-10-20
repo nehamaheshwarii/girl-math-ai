@@ -58,6 +58,11 @@ class BM25Index:
                 denom = f + self.k1 * (1 - self.b + self.b * self.doc_len[i] / (self.avg_len or 1))
                 score += self.idf.get(term, 0.0) * (f * (self.k1 + 1)) / denom
             if score > 0:
+                # Short-chunk penalty: table-of-contents entries in real
+                # filings are keyword-perfect ("Item 1A. Risk Factors 5")
+                # but content-free. Real passages are substantially longer.
+                if len(chunk.text) < 200:
+                    score *= 0.25
                 scored.append((chunk, round(score, 4)))
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored[:top_k]
