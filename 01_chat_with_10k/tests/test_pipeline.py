@@ -50,6 +50,14 @@ def test_unknown_question_is_not_found():
     assert result["citations"] == []
 
 
+def test_generic_word_overlap_is_not_found():
+    # 'dividend'/'policy' are nowhere in the filing; only generic words
+    # (company, next, year) overlap. Score alone would wrongly answer.
+    _, index = _index()
+    result = answer("What is the company's dividend policy for next year?", index)
+    assert result["status"] == "not_found"
+
+
 def test_known_question_returns_cited_sources():
     _, index = _index()
     result = answer("What percentage of revenue do the top five customers represent?", index)

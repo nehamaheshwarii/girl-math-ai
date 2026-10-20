@@ -14,8 +14,15 @@ A 10-K is 100+ pages of dense, structured disclosure. Analysts, investors, and p
 4. Nothing relevant found → the app says so. It never answers from general knowledge.
 
 ## Run it
+Fastest test — no UI, no installs, no API key:
 ```bash
 cd 01_chat_with_10k
+python demo.py                     # 3 answerable questions + 1 that must be refused
+python demo.py "Your question?"    # ask the sample filing your own question
+```
+
+Full app:
+```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py

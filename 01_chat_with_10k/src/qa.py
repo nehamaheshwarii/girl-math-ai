@@ -12,16 +12,36 @@ from __future__ import annotations
 import os
 
 from .ingest import Chunk
-from .retrieval import BM25Index
+from .retrieval import BM25Index, tokenize
 
 MIN_SCORE = 1.0  # below this, we treat retrieval as "not in the filing"
 # Tuned on evals/eval_questions.json: real questions score 2.0+, while
 # off-topic questions that only share stray terms score below 1.0.
 
+SPECIFIC_IDF = 1.0  # a matched query term must be at least this specific
+
+
+def _has_specific_match(question: str, index: BM25Index,
+                        hits: list[tuple[Chunk, float]]) -> bool:
+    """True if a *specific* query term actually appears in a retrieved chunk.
+
+    Score alone is not enough: "What is the dividend policy next year?"
+    scores >1.0 on generic words (company, next, year) even when 'dividend'
+    and 'policy' appear nowhere in the filing. Requiring one high-IDF term
+    to match is what makes the refusal trustworthy.
+    """
+    hit_tokens: set[str] = set()
+    for chunk, _ in hits:
+        hit_tokens.update(tokenize(chunk.text))
+    return any(
+        index.idf.get(term, 0.0) >= SPECIFIC_IDF and term in hit_tokens
+        for term in tokenize(question)
+    )
+
 
 def answer(question: str, index: BM25Index, top_k: int = 5) -> dict:
     hits = index.search(question, top_k=top_k)
-    if not hits or hits[0][1] < MIN_SCORE:
+    if not hits or hits[0][1] < MIN_SCORE or not _has_specific_match(question, index, hits):
         return {
             "status": "not_found",
             "answer": "I couldn't find that in this filing. "
