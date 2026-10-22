@@ -16,6 +16,10 @@ from pathlib import Path
 # 10-K section headings, e.g. "ITEM 1A. RISK FACTORS"
 SECTION_RE = re.compile(r"^\s*(ITEM\s+\d+[A-Z]?\.)\s*(.*)$", re.IGNORECASE | re.MULTILINE)
 
+# Sentence boundary: punctuation + whitespace + a capital/digit/quote/paren
+# ahead. The negative lookbehind keeps initials like "U.S." together.
+SENTENCE_END_RE = re.compile(r"(?<![A-Z][.!?])(?<=[.!?])\s+(?=[A-Z0-9\"'(])")
+
 
 @dataclass
 class Chunk:
@@ -85,27 +89,77 @@ def split_sections(text: str) -> list[tuple[str, str, int]]:
     return out
 
 
+def _sentence_spans(text: str) -> list[tuple[int, int]]:
+    """Return (start, end) offsets of sentences in *text* (offsets into text)."""
+    bounds = [0]
+    for m in SENTENCE_END_RE.finditer(text):
+        bounds.append(m.end())
+    bounds.append(len(text))
+    return [(a, b) for a, b in zip(bounds, bounds[1:])
+            if text[a:b].strip()]
+
+
+def _hard_split(piece: tuple[int, int], text: str,
+                chunk_chars: int) -> list[tuple[int, int]]:
+    """Split an over-long sentence at word boundaries, never mid-word."""
+    a, b = piece
+    out = []
+    while b - a > chunk_chars:
+        cut = text.rfind(" ", a, a + chunk_chars)
+        if cut <= a:  # pathological: no space at all; unavoidable hard cut
+            cut = a + chunk_chars
+        out.append((a, cut))
+        a = cut
+    out.append((a, b))
+    return out
+
+
 def chunk_document(text: str, title: str = "10-K", chunk_chars: int = 1800,
-                   overlap: int = 200) -> Document:
-    """Split a filing into overlapping, section-labelled chunks."""
+                   overlap_sentences: int = 2) -> Document:
+    """Split a filing into overlapping, section-labelled chunks.
+
+    Sentences are never split mid-word: each chunk is a run of whole
+    sentences packed to <= chunk_chars, and chunk boundaries always fall
+    on whitespace. Consecutive chunks share ``overlap_sentences`` sentences
+    so context is not lost at boundaries.
+    """
     doc = Document(title=title)
     cid = 0
     for section, sec_text, sec_start in split_sections(text):
+        raw = sec_text
         sec_text = sec_text.strip()
         if not sec_text:
             continue
-        pos = 0
-        while pos < len(sec_text):
-            piece = sec_text[pos: pos + chunk_chars]
-            doc.chunks.append(Chunk(
-                chunk_id=cid,
-                section=section,
-                text=piece.strip(),
-                start_char=sec_start + pos,
-                end_char=sec_start + pos + len(piece),
-            ))
-            cid += 1
-            if pos + chunk_chars >= len(sec_text):
+        # sec_text was stripped: shift the base offset past leading whitespace
+        pad = len(raw) - len(raw.lstrip())
+
+        pieces: list[tuple[int, int]] = []
+        for span in _sentence_spans(sec_text):
+            pieces.extend(_hard_split(span, sec_text, chunk_chars))
+
+        i = 0
+        while i < len(pieces):
+            j = i
+            length = 0
+            while j < len(pieces):
+                pa, pb = pieces[j]
+                add = (pb - pa) + (1 if length else 0)
+                if length and length + add > chunk_chars:
+                    break
+                length += add
+                j += 1
+            start, end = pieces[i][0], pieces[j - 1][1]
+            chunk_text = sec_text[start:end].strip()
+            if chunk_text:
+                doc.chunks.append(Chunk(
+                    chunk_id=cid,
+                    section=section,
+                    text=chunk_text,
+                    start_char=sec_start + pad + start,
+                    end_char=sec_start + pad + end,
+                ))
+                cid += 1
+            if j >= len(pieces):
                 break
-            pos += max(1, chunk_chars - overlap)
+            i = max(i + 1, j - overlap_sentences)
     return doc
