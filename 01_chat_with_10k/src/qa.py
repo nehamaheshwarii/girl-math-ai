@@ -20,6 +20,12 @@ MIN_SCORE = 1.0  # below this, we treat retrieval as "not in the filing"
 
 SPECIFIC_IDF = 1.0  # a matched query term must be at least this specific
 
+QUALITY_RATIO = 0.5  # v2: only show passages scoring within 50% of the top hit.
+# A strong top passage plus weak 2nd/3rd ones reads as noise (the ITEM 16
+# problem in the MSFT screenshot). Better one strong passage than three.
+
+SNIPPET_CHARS = 500  # v2: trim extractive snippets to this, at sentence ends.
+
 
 def _has_specific_match(question: str, index: BM25Index,
                         hits: list[tuple[Chunk, float]]) -> bool:
@@ -39,6 +45,36 @@ def _has_specific_match(question: str, index: BM25Index,
     )
 
 
+def _quality_hits(hits: list[tuple[Chunk, float]]) -> list[tuple[Chunk, float]]:
+    """Keep only passages within QUALITY_RATIO of the top score (min: 1).
+
+    ``hits`` must be score-sorted descending, as BM25Index.search returns.
+    """
+    if not hits:
+        return []
+    top = hits[0][1]
+    kept = [(c, s) for c, s in hits if s >= top * QUALITY_RATIO]
+    return kept or [hits[0]]
+
+
+def _trim_snippet(text: str, max_chars: int = SNIPPET_CHARS) -> str:
+    """Trim to <= max_chars at a sentence end; fall back to a word boundary.
+
+    Never cuts mid-word. Returns the trimmed text without the ellipsis;
+    callers add their own.
+    """
+    flat = " ".join(text.split())
+    if len(flat) <= max_chars:
+        return flat
+    # Last sentence end within the budget...
+    cut = max(flat.rfind(p, 0, max_chars) for p in ".!?")
+    if cut > max_chars // 4:
+        return flat[: cut + 1]
+    # ...else the last word boundary.
+    space = flat.rfind(" ", 0, max_chars)
+    return flat[: space] if space > 0 else flat[:max_chars]
+
+
 def answer(question: str, index: BM25Index, top_k: int = 5) -> dict:
     hits = index.search(question, top_k=top_k)
     if not hits or hits[0][1] < MIN_SCORE or not _has_specific_match(question, index, hits):
@@ -51,6 +87,9 @@ def answer(question: str, index: BM25Index, top_k: int = 5) -> dict:
             "sources": [],
         }
 
+    # v2 (U2): drop weak trailing passages — show 1 strong passage,
+    # not 3 noisy ones.
+    hits = _quality_hits(hits)
     sources = [{"citation": c.citation(), "section": c.section,
                 "text": c.text, "score": s} for c, s in hits]
 
@@ -63,9 +102,9 @@ def answer(question: str, index: BM25Index, top_k: int = 5) -> dict:
 
     # Extractive fallback — no key needed, nothing invented.
     lines = ["Based only on the passages retrieved from this filing:\n"]
-    for s in sources[:3]:
-        snippet = " ".join(s["text"].split())[:500]
-        lines.append(f"- {snippet}… {s['citation']}")
+    for s in sources:
+        # v2 (U3): trim at a sentence end, never mid-word.
+        lines.append(f"- {_trim_snippet(s['text'])}… {s['citation']}")
     return {"status": "ok_extractive", "answer": "\n".join(lines),
             "citations": [s["citation"] for s in sources],
             "sources": sources}
