@@ -8,7 +8,7 @@ its costs, risks, and limitations. Focus: **finance and product-building**.
 | # | Project | Capability it proves | Status |
 |---|---------|---------------------|--------|
 | 01 | [Chat with a 10-K](01_chat_with_10k/) | Agentic RAG with citations; "not found" instead of hallucinating | ✅ v1 built — now with live SEC EDGAR fetch by ticker; tests passing |
-| 02 | Earnings Call Analyst | Single agent, structured output | Planned — reuses 01's ingestion/retrieval |
+| 02 | [Earnings Call Analyst](02_earnings_call_analyst/) | Single agent, structured output | ✅ v1 built — extractive structured report, cited to speaker segments; tests passing |
 | 03 | User Research Synthesizer | RAG over messy qualitative data | Planned |
 | 04 | Investment Research Team | Multi-agent team with a risk/critic agent | Planned |
 | 05 | PRD Critic / Launch Intelligence | Multi-agent + web research | Planned |

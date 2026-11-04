@@ -1,0 +1,28 @@
+SAMPLE EARNINGS CALL TRANSCRIPT — SYNTHETIC DATA FOR DEMO/TESTING ONLY.
+This is a fictional transcript written for this project. It is not a real
+company's earnings call and must not be presented as one. Real transcripts
+are public, but this sample keeps the demo runnable offline with no
+copyright or attribution questions.
+
+Northwind Robotics, Inc. — Q2 Fiscal 2026 Earnings Call
+
+Operator: Good afternoon, and welcome to Northwind Robotics' second quarter fiscal 2026 earnings call. All participants will be in listen-only mode until the question-and-answer session.
+
+Prepared Remarks
+
+CEO Maya Chen: Thank you, everyone, and welcome. This was a strong quarter for Northwind. Total revenue was $312 million, up 18% year over year, driven by a 32% increase in software subscription revenue, which now represents 36% of total revenue. Our warehouse automation systems are winning with logistics customers across North America and Europe, and our AI-assisted routing platform is now live with 12 pilot customers.
+CEO Maya Chen: Gross margin was 45%, down from 48% a year ago, due to higher component costs and expedited freight. That is a headwind we are managing, not a change in the underlying business. We expect gross margin to recover to 46% to 47% in the second half as our new supplier agreements take effect and freight rates normalise.
+CFO David Okafor: Operating expenses increased primarily due to investment in research and development for the next generation robot platform and for AI features. We held $84 million in cash and cash equivalents at quarter end, with no outstanding borrowings under our $50 million revolving credit facility.
+CFO David Okafor: Turning to guidance: for the third quarter, we expect revenue of $320 million to $335 million. For the full year, we are raising guidance to revenue growth of 16% to 18%. That guidance assumes tariffs remain at current rates. If tariffs were to rise by a further 10 percentage points, we would expect roughly 2 percentage points of additional gross margin pressure.
+CEO Maya Chen: A word on risk. Our business depends on a small number of large customers; the top five customers accounted for approximately 41% of total revenue. We also depend on a single contract manufacturer for our robot drive units, and supply interruptions have previously delayed shipments by up to six weeks. We are dual-sourcing a second manufacturer, with production expected by year end, to reduce that concentration risk.
+
+Question-and-Answer Session
+
+Sarah Lin, Meridian Capital: My question is about AI monetisation. You mentioned 12 pilot customers for the AI-assisted routing platform. When do you expect to charge for it, and how should we think about pricing?
+CEO Maya Chen: Great question, Sarah. The pilots are free today while we prove the return on investment with customers. We expect to introduce paid pricing later this year, priced per robot per month, and we will share more detail on the next call. The early feedback is that routing efficiency gains of 10% to 15% are typical, which gives us confidence in the pricing conversation.
+Tom Reyes, Harbor Research: On capital return, you authorised a $50 million share repurchase last quarter. Should we expect buybacks to continue at this pace, and is there any change to the dividend?
+CFO David Okafor: Thanks, Tom. We repurchased $12 million of shares in the quarter. We expect buybacks to continue at a similar pace, subject to market conditions, and there is no change to the dividend at this time.
+Sarah Lin, Meridian Capital: A follow-up on guidance and tariffs. Your guidance assumes current tariff rates — how sensitive is that guidance if tariffs move, and what are you doing on the supply side?
+CFO David Okafor: As I said in prepared remarks, a further 10 percentage point tariff increase would mean roughly 2 percentage points of gross margin pressure. On supply, we are dual-sourcing a second contract manufacturer and building buffer inventory for critical components, which should reduce supply disruption risk over the next two quarters.
+Tom Reyes, Harbor Research: Last one from me, on supply. You mentioned a single contract manufacturer and past delays of up to six weeks. What gives you confidence the dual-sourcing plan lands by year end?
+CEO Maya Chen: We have signed the agreement with the second manufacturer and the first production run is scheduled for the fourth quarter. That does not remove supply risk entirely, but it materially reduces our dependence on a single source, and we will update you on progress next quarter.
