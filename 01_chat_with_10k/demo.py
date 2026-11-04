@@ -74,6 +74,8 @@ def main() -> None:
         result = answer(q, index, mode="generated" if summarized else "auto")
         print(f"Q: {q}")
         print(f"Status: {result['status']} (mode: {result.get('mode')})")
+        if result.get("expanded_query") and result["expanded_query"] != q:
+            print(f"Expanded search: {result['expanded_query']}")
         if result.get("llm_warning"):
             print(f"Note: {result['llm_warning']}")
         print(result["answer"][:700])

@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.ingest import chunk_document, load_text
+from src.ingest import Chunk, chunk_document, load_text
 from src.retrieval import BM25Index
 from src.qa import answer
 
@@ -276,3 +276,84 @@ def test_model_choice_is_passed_to_client():
            llm_client=client)
     assert client.calls and client.calls[0]["model"] == "gpt-4o"
     assert client.calls[0]["temperature"] == 0
+
+
+# --- v2 (U6): query expansion with filing language ---
+
+def _u6_index():
+    # The AAPL failure case, in miniature: "principal" alone points at
+    # Controls (principal executive officer), while the Risk Factors
+    # passage uses "risks" (plural) and "material adverse effect".
+    chunks = [
+        Chunk(0, "ITEM 9A. Controls and Procedures",
+              "The principal executive officer and principal financial "
+              "officer have concluded disclosure controls were effective.",
+              0, 100),
+        Chunk(1, "ITEM 1A. Risk Factors",
+              "The following summarizes factors that could have a material "
+              "adverse effect on the business. Risks include supply "
+              "interruptions and tariffs.",
+              100, 200),
+        # Fillers: they raise the IDF of the specific terms above the
+        # refusal threshold (which needs a term in 1 of 4+ chunks),
+        # without containing any query term themselves.
+        Chunk(2, "ITEM 2. Properties",
+              "The company owns office buildings and warehouses in several "
+              "states for its operations and distribution centers.",
+              200, 300),
+        Chunk(3, "ITEM 1. Business",
+              "The company designs and sells warehouse automation systems "
+              "and software platforms to logistics customers.",
+              300, 400),
+    ]
+    return BM25Index(chunks)
+
+
+def test_expansion_only_adds_terms_actually_in_the_filing():
+    # U6 anti-gaming rule: "material"/"adverse" are not in the sample
+    # excerpt's vocabulary, so asking about risk there adds nothing.
+    _, index = _index()
+    assert index.expand_query("risk") == "risk"
+    # But the curated "sales" -> "revenue" mapping does fire on the sample.
+    assert "revenue" in index.expand_query("sales").split()
+
+
+def test_expansion_adds_plural_and_filing_terms_not_nonsense():
+    # U6: risk -> risks (plural), material, adverse — all in this corpus.
+    # Nonsense variants like "riskes" must never appear.
+    index = _u6_index()
+    expanded = index.expand_query("What are the principal risk factors?")
+    for term in ("risks", "material", "adverse"):
+        assert term in expanded.split()
+    assert "riskes" not in expanded.split()
+
+
+def test_expansion_flips_principal_risk_query_to_risk_factors():
+    # U6, the motivating case: unexpanded, "principal" wins and the top
+    # hit is Controls; expanded, the Risk Factors passage wins.
+    index = _u6_index()
+    q = "What are the principal risk factors?"
+    baseline = index.search(q, expand=False)
+    assert baseline and "Controls" in baseline[0][0].section
+    expanded = index.search(q)
+    assert expanded and "Risk Factors" in expanded[0][0].section
+
+
+def test_answer_uses_expansion_and_reports_it():
+    # U6: answer() ranks on the expanded query and reports it, so the
+    # UI can show the user what filing terms were added.
+    index = _u6_index()
+    result = answer("What are the principal risk factors?", index)
+    assert result["status"] == "ok_extractive"
+    assert "Risk Factors" in result["sources"][0]["section"]
+    assert "material" in result["expanded_query"].split()
+
+
+def test_expansion_does_not_break_refusal():
+    # U6: expansion ranks, it never creates eligibility. The dividend
+    # question's own terms are still absent, so it still refuses.
+    _, index = _index()
+    result = answer("What is the company's dividend policy for next year?",
+                    index)
+    assert result["status"] == "not_found"
+    assert result["citations"] == []

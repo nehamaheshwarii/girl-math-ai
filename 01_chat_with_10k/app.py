@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import streamlit as st  # noqa: E402
 
 from src.ingest import chunk_document, load_text  # noqa: E402
-from src.retrieval import BM25Index  # noqa: E402
+from src.retrieval import BM25Index, tokenize  # noqa: E402
 from src.qa import answer  # noqa: E402
 
 st.set_page_config(page_title="Chat with a 10-K", page_icon="📄")
@@ -86,6 +86,12 @@ if doc:
             mode="generated" if summarized else "extractive",
             model=model, api_key=api_key or None)
         st.markdown(result["answer"])
+        # v2 (U6): show what filing-language terms were added to the
+        # search, so expansion is transparent rather than hidden magic.
+        expanded = result.get("expanded_query") or q
+        added = sorted(set(tokenize(expanded)) - set(tokenize(q)))
+        if added:
+            st.caption(f"Search also used filing terms: {', '.join(added)}")
         if result.get("llm_warning"):
             st.warning(result["llm_warning"])
         elif result.get("mode") == "generated":

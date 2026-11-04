@@ -10,7 +10,7 @@ A 10-K is 100+ pages of dense, structured disclosure. Analysts, investors, and p
 ## What it does
 1. Get a filing three ways: **enter a ticker** (fetches the latest real 10-K from SEC EDGAR), upload a 10-K (`.txt`, `.md`, or `.pdf`), or try the sample excerpt.
 2. The filing is split by ITEM section (Risk Factors, Business, MD&A…) into overlapping, citable chunks.
-3. Ask a question. BM25 retrieval finds the relevant passages; the answer is built **only** from those passages, each cited as `[ITEM 1A. RISK FACTORS · chunk 3]`.
+3. Ask a question. BM25 retrieval finds the relevant passages (with filing-language query expansion — see below); the answer is built **only** from those passages, each cited as `[ITEM 1A. RISK FACTORS · chunk 3]`.
 4. Nothing relevant found → the app says so. It never answers from general knowledge.
 
 ## Run it
@@ -44,6 +44,7 @@ EDGAR notes: follows SEC fair-access rules (declared User-Agent — set `SEC_EDG
 
 ## Product decisions (and why)
 - **BM25 before embeddings.** Filings are keyword-dense — accounting terms, item numbers, exact figures. Lexical search is strong, explainable, and free. Embeddings are a v2 candidate, to be adopted only if they beat BM25 on the eval set.
+- **Query expansion (v2, U6).** Conversational phrasing is mapped to filing language before ranking — e.g. "risk" also matches "material adverse" and "risks", "sales" matches "revenue", singular/plural variants are matched. Only terms actually present in that filing are added, the added terms are shown in the UI, and refusal is still gated on the original question, so expansion improves ranking without inventing eligibility. Verified on Apple's latest 10-K: "What are the principal risk factors?" went from a Controls top hit to ITEM 1A Risk Factors as the top 3 hits.
 - **"Not found" is a feature.** In finance, a wrong confident answer costs more than no answer. The retrieval threshold is tuned on `evals/eval_questions.json`.
 - **Works with no API key.** A portfolio project nobody can run helps nobody. The extractive mode also makes the system testable end-to-end in CI.
 

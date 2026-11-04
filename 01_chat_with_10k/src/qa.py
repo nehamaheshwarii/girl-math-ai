@@ -107,19 +107,22 @@ def _citation_problem(text: str, citations: list[str]) -> str | None:
     return None
 
 
-def _extractive_answer(sources: list[dict]) -> dict:
+def _extractive_answer(sources: list[dict],
+                       expanded_query: str | None = None) -> dict:
     lines = ["Based only on the passages retrieved from this filing:\n"]
     for s in sources:
         # v2 (U3): trim at a sentence end, never mid-word.
         lines.append(f"- {_trim_snippet(s['text'])}… {s['citation']}")
     return {"status": "ok_extractive", "answer": "\n".join(lines),
             "citations": [s["citation"] for s in sources],
-            "sources": sources, "mode": "extractive", "llm_warning": None}
+            "sources": sources, "mode": "extractive", "llm_warning": None,
+            "expanded_query": expanded_query}
 
 
 def answer(question: str, index: BM25Index, top_k: int = 5,
            mode: str = "auto", model: str | None = None,
-           llm_client=None, api_key: str | None = None) -> dict:
+           llm_client=None, api_key: str | None = None,
+           expand: bool = True) -> dict:
     """Answer *question* from retrieved passages.
 
     mode:
@@ -135,13 +138,21 @@ def answer(question: str, index: BM25Index, top_k: int = 5,
     .create(...)``); it exists so tests can fake the LLM without a key or
     network. In production it is normally None and the client is built
     from ``api_key`` or the OPENAI_API_KEY environment variable.
+
+    ``expand`` (v2, U6): rank on the filing-language expansion of the
+    question. The refusal gate below still uses the *original* question:
+    expansion may improve ranking, but it must never manufacture
+    eligibility for an answer the user did not actually ask about.
     """
     if mode not in {"auto", "extractive", "generated"}:
         raise ValueError(f"unknown mode: {mode!r} "
                          "(expected 'auto', 'extractive' or 'generated')")
     model = model or os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
 
-    hits = index.search(question, top_k=top_k)
+    # v2 (U6): rank on the expanded query; the query the user sees in
+    # the result is the expanded one, so the UI can show what was added.
+    expanded = index.expand_query(question) if expand else question
+    hits = index.search(expanded, top_k=top_k, expand=False)
     if not hits or hits[0][1] < MIN_SCORE or not _has_specific_match(question, index, hits):
         return {
             "status": "not_found",
@@ -150,6 +161,7 @@ def answer(question: str, index: BM25Index, top_k: int = 5,
             "sources": [],
             "mode": "extractive",
             "llm_warning": None,
+            "expanded_query": expanded,
         }
 
     # v2 (U2): drop weak trailing passages — show 1 strong passage,
@@ -159,25 +171,26 @@ def answer(question: str, index: BM25Index, top_k: int = 5,
                 "text": c.text, "score": s} for c, s in hits]
 
     if mode == "extractive":
-        return _extractive_answer(sources)
+        return _extractive_answer(sources, expanded_query=expanded)
 
     has_key = bool(llm_client or api_key or os.getenv("OPENAI_API_KEY"))
     if mode == "auto" and not has_key:
         # The ordinary no-key path: extractive, no warning needed.
-        return _extractive_answer(sources)
+        return _extractive_answer(sources, expanded_query=expanded)
 
     generated, problem = _llm_answer(
         question, hits, model=model, llm_client=llm_client, api_key=api_key)
     if generated is not None:
         return {"status": "ok", "answer": generated,
                 "citations": [s["citation"] for s in sources],
-                "sources": sources, "mode": "generated", "llm_warning": None}
+                "sources": sources, "mode": "generated", "llm_warning": None,
+                "expanded_query": expanded}
 
     # Graceful, visible fallback (v2, U4): never fail silently, and never
     # return an unverified generated answer.
     if mode == "generated" and not has_key:
         problem = "no API key was available"
-    result = _extractive_answer(sources)
+    result = _extractive_answer(sources, expanded_query=expanded)
     result["llm_warning"] = (
         f"Summarized answer unavailable ({problem}); "
         "showing the retrieved passages instead.")
