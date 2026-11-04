@@ -3,6 +3,10 @@
 Run:  python demo.py
       python demo.py "Your own question here"
       python demo.py --ticker AAPL "What are the principal risk factors?"
+      python demo.py --summarized "Your question?"   # v2 (U4): generated
+                                                     # answer if OPENAI_API_KEY
+                                                     # is set, else extractive
+                                                     # with a visible warning
 
 Default: loads the synthetic sample filing excerpt, asks three questions
 that ARE in it (expect cited answers) and one that is NOT (expect: not
@@ -41,6 +45,9 @@ EDGAR_QUESTIONS = [
 def main() -> None:
     args = sys.argv[1:]
     ticker = None
+    summarized = "--summarized" in args
+    if summarized:
+        args = [a for a in args if a != "--summarized"]
     if "--ticker" in args:
         i = args.index("--ticker")
         ticker = args[i + 1]
@@ -64,9 +71,11 @@ def main() -> None:
 
     questions = [" ".join(args)] if args else default_questions
     for q in questions:
-        result = answer(q, index)
+        result = answer(q, index, mode="generated" if summarized else "auto")
         print(f"Q: {q}")
-        print(f"Status: {result['status']}")
+        print(f"Status: {result['status']} (mode: {result.get('mode')})")
+        if result.get("llm_warning"):
+            print(f"Note: {result['llm_warning']}")
         print(result["answer"][:700])
         print("-" * 70)
 

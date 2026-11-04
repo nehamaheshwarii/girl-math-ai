@@ -1,3 +1,5 @@
+import os
+import re
 import sys
 from pathlib import Path
 
@@ -134,3 +136,143 @@ def test_answer_snippets_are_sentence_trimmed():
         if line.startswith("- "):
             body = line[2:].rsplit(" [", 1)[0].rstrip("…")
             assert len(body) <= 500, f"snippet too long: {len(body)}"
+
+
+# --- v2 (U4): summarized answers, citation-verified, visible fallback ---
+
+class _FakeMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content):
+        self.message = _FakeMessage(content)
+
+
+class _FakeResponse:
+    def __init__(self, content):
+        self.choices = [_FakeChoice(content)]
+
+
+class _FakeCompletions:
+    """Mimics client.chat.completions; records the call for assertions."""
+    def __init__(self, make_text):
+        self.make_text = make_text
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return _FakeResponse(self.make_text(kwargs["messages"]))
+
+
+class _FakeChat:
+    def __init__(self, make_text):
+        self.completions = _FakeCompletions(make_text)
+
+
+class _FakeClient:
+    def __init__(self, make_text):
+        self.chat = _FakeChat(make_text)
+
+    @property
+    def calls(self):
+        return self.chat.completions.calls
+
+
+def _first_citation(messages):
+    user = next(m["content"] for m in messages if m["role"] == "user")
+    return re.search(r"\[[^\]]*· chunk \d+\]", user).group(0)
+
+
+def _cited_answer(messages):
+    cit = _first_citation(messages)
+    return f"Top five customers accounted for approximately 41% of revenue. {cit}"
+
+
+QUESTION_41 = "What percentage of revenue do the top five customers represent?"
+
+
+def test_generated_answer_returned_when_citations_verified():
+    # U4: a properly cited generated answer is returned, mode = generated.
+    _, index = _index()
+    client = _FakeClient(_cited_answer)
+    result = answer(QUESTION_41, index, mode="generated", llm_client=client)
+    assert result["status"] == "ok"
+    assert result["mode"] == "generated"
+    assert result["llm_warning"] is None
+    assert "41%" in result["answer"]
+    assert any(c in result["answer"] for c in result["citations"])
+
+
+def test_generated_answer_falls_back_when_uncited():
+    # U4: no citation in the output = unverified = extractive + warning,
+    # never a silently returned generated answer.
+    _, index = _index()
+    client = _FakeClient(lambda m: "Top five customers were about 41%.")
+    result = answer(QUESTION_41, index, mode="generated", llm_client=client)
+    assert result["status"] == "ok_extractive"
+    assert result["mode"] == "extractive"
+    assert result["llm_warning"] and "citation check" in result["llm_warning"]
+    assert result["answer"].startswith("Based only on the passages")
+
+
+def test_generated_answer_falls_back_on_fabricated_citation():
+    # U4: a citation that was not retrieved is invented, so it fails too.
+    _, index = _index()
+    client = _FakeClient(
+        lambda m: "Top five customers were about 41%. [ITEM 9. FAKE · chunk 99]")
+    result = answer(QUESTION_41, index, mode="generated", llm_client=client)
+    assert result["status"] == "ok_extractive"
+    assert result["llm_warning"] and "not retrieved" in result["llm_warning"]
+
+
+def test_generated_answer_falls_back_on_client_error():
+    # U4: an LLM failure must not kill the answer — visible fallback.
+    _, index = _index()
+
+    def _boom(messages):
+        raise RuntimeError("down")
+
+    client = _FakeClient(_boom)
+    result = answer(QUESTION_41, index, mode="generated", llm_client=client)
+    assert result["status"] == "ok_extractive"
+    assert result["llm_warning"] and "LLM call failed" in result["llm_warning"]
+
+
+def test_explicit_extractive_never_calls_llm():
+    # U4: extractive mode is a hard no-LLM choice, even with a client given.
+    _, index = _index()
+
+    def _boom(messages):
+        raise AssertionError("LLM must not be called in extractive mode")
+
+    client = _FakeClient(_boom)
+    result = answer(QUESTION_41, index, mode="extractive", llm_client=client)
+    assert result["status"] == "ok_extractive"
+    assert result["llm_warning"] is None
+    assert client.calls == []
+
+
+def test_generated_mode_without_key_falls_back_with_warning():
+    # U4: asking for summarized with no key is not an error — it is a
+    # visible extractive fallback. Env key is cleared so this is deterministic.
+    _, index = _index()
+    saved = os.environ.pop("OPENAI_API_KEY", None)
+    try:
+        result = answer(QUESTION_41, index, mode="generated")
+    finally:
+        if saved is not None:
+            os.environ["OPENAI_API_KEY"] = saved
+    assert result["status"] == "ok_extractive"
+    assert result["llm_warning"] and "api key" in result["llm_warning"].lower()
+
+
+def test_model_choice_is_passed_to_client():
+    # U4: the UI's model choice must actually reach the LLM call.
+    _, index = _index()
+    client = _FakeClient(_cited_answer)
+    answer(QUESTION_41, index, mode="generated", model="gpt-4o",
+           llm_client=client)
+    assert client.calls and client.calls[0]["model"] == "gpt-4o"
+    assert client.calls[0]["temperature"] == 0

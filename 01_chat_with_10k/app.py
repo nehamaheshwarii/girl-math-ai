@@ -1,9 +1,12 @@
 """Chat with a 10-K — Streamlit UI.
 
 Run:  streamlit run app.py
-Works with no API key (extractive, cited answers). Set OPENAI_API_KEY in
-.env for generated answers — still grounded only in retrieved passages.
+Works with no API key (extractive, cited answers). For summarized answers,
+pick "Summarized" below and either set OPENAI_API_KEY before launching or
+enter a key in the sidebar (kept in this session only, never saved to disk)
+— still grounded only in retrieved passages, with citations verified.
 """
+import os
 from pathlib import Path
 import sys
 
@@ -57,10 +60,37 @@ if doc:
     st.sidebar.success(f"{doc.title}: {len(doc.chunks)} chunks")
     st.sidebar.write("Sections:", ", ".join(doc.sections[:12]))
 
+    # v2 (U4): answer style + model choice. Extractive stays the default,
+    # so the app still works with no key at all.
+    st.sidebar.header("Answer style")
+    style = st.sidebar.radio(
+        "Answer style",
+        ["Extractive (no key needed)", "Summarized (needs API key)"],
+        index=0,
+    )
+    model = st.sidebar.selectbox(
+        "Model (summarized mode)", ["gpt-4o-mini", "gpt-4o"], index=0)
+    api_key = st.sidebar.text_input(
+        "OpenAI API key (session only, not saved)", type="password",
+        help="Or set OPENAI_API_KEY before launching Streamlit.")
+    summarized = style.startswith("Summarized")
+    if summarized and not (api_key or os.getenv("OPENAI_API_KEY")):
+        st.sidebar.warning(
+            "No API key found — summarized answers will fall back to "
+            "the retrieved passages.")
+
     q = st.text_input("Your question", placeholder="What are the principal risk factors?")
     if q:
-        result = answer(q, index)
+        result = answer(
+            q, index,
+            mode="generated" if summarized else "extractive",
+            model=model, api_key=api_key or None)
         st.markdown(result["answer"])
+        if result.get("llm_warning"):
+            st.warning(result["llm_warning"])
+        elif result.get("mode") == "generated":
+            st.caption("Summarized from the retrieved passages only — "
+                       "citations verified against the sources below.")
         if result["sources"]:
             with st.expander("Sources"):
                 for s in result["sources"]:
