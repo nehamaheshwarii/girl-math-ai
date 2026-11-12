@@ -11,6 +11,9 @@ A 10-K is 100+ pages of dense, structured disclosure. Analysts, investors, and p
 1. Get a filing three ways: **enter a ticker** (fetches the latest real 10-K from SEC EDGAR), upload a 10-K (`.txt`, `.md`, or `.pdf`), or try the sample excerpt.
 2. The filing is split by ITEM section (Risk Factors, Business, MD&A…) into overlapping, citable chunks.
 3. Ask a question. BM25 retrieval finds the relevant passages (with filing-language query expansion — see below); the answer is built **only** from those passages, each cited as `[ITEM 1A. RISK FACTORS · chunk 3]`.
+
+v2 upgrades, all live: sentence-aware chunking (no mid-word cuts), an answer-quality bar (only passages within 50% of the top score, minimum 1), sentence-trimmed snippets, summarized answers (sidebar toggle, session-only API key, citations verified against retrieved passages, visible extractive fallback on failure), and filing-language query expansion (everyday phrasing mapped to filing terms actually present in that filing; added terms shown).
+
 4. Nothing relevant found → the app says so. It never answers from general knowledge.
 
 ## Run it
